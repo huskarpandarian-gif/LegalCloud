@@ -1,0 +1,1022 @@
+openapi: 3.1.0
+info:
+  title: LegalCloud AI API
+  version: 1.0.0
+  summary: API para gestión documental jurídica con capacidades de OCR y consulta RAG.
+  description: >-
+    Contrato inicial API-First. Los recursos se aíslan por organización; la
+    organización activa se determina por la sesión autenticada. Las operaciones
+    de negocio descritas aquí son el contrato objetivo y se implementarán por
+    módulos.
+servers:
+  - url: /api/v1
+    description: API versionada de LegalCloud AI
+tags:
+  - name: Autenticación
+  - name: Usuarios
+  - name: Expedientes
+  - name: Categorías
+  - name: Documentos
+  - name: Búsqueda
+  - name: OCR
+  - name: Asistente
+  - name: Notificaciones
+  - name: Auditoría
+  - name: Dashboard
+security:
+  - bearerAuth: []
+paths:
+  /auth/login:
+    post:
+      tags: [Autenticación]
+      operationId: login
+      summary: Iniciar sesión
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        '200':
+          description: Sesión iniciada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSession' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /auth/logout:
+    post:
+      tags: [Autenticación]
+      operationId: logout
+      summary: Cerrar la sesión actual
+      responses:
+        '204': { description: Sesión cerrada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /users:
+    get:
+      tags: [Usuarios]
+      operationId: listUsers
+      summary: Listar usuarios de la organización (solo administrador)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: role
+          in: query
+          schema: { $ref: '#/components/schemas/UserRole' }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 120 }
+      responses:
+        '200':
+          description: Usuarios paginados
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Usuarios]
+      operationId: createUser
+      summary: Crear un usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserCreate' }
+      responses:
+        '201':
+          description: Usuario creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /users/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Usuarios]
+      operationId: getUser
+      summary: Consultar un usuario (solo administrador)
+      responses:
+        '200':
+          description: Usuario encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Usuarios]
+      operationId: updateUser
+      summary: Actualizar usuario o rol
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserUpdate' }
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Usuarios]
+      operationId: deleteUser
+      summary: Eliminar un usuario de la organización (solo administrador)
+      responses:
+        '204': { description: Usuario eliminado }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /cases:
+    get:
+      tags: [Expedientes]
+      operationId: listCases
+      summary: Listar expedientes
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/CaseStatus' }
+        - name: categoryId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 120 }
+      responses:
+        '200':
+          description: Expedientes paginados
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Case' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Expedientes]
+      operationId: createCase
+      summary: Crear expediente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CaseCreate' }
+      responses:
+        '201':
+          description: Expediente creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Case' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /cases/{caseId}:
+    parameters:
+      - $ref: '#/components/parameters/CaseId'
+    get:
+      tags: [Expedientes]
+      operationId: getCase
+      summary: Obtener expediente con resumen de documentos
+      responses:
+        '200':
+          description: Expediente encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Case' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Expedientes]
+      operationId: updateCase
+      summary: Actualizar expediente o su estado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CaseUpdate' }
+      responses:
+        '200':
+          description: Expediente actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Case' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /categories:
+    get:
+      tags: [Categorías]
+      operationId: listCategories
+      summary: Listar categorías documentales
+      responses:
+        '200':
+          description: Categorías de la organización
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Category' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Categorías]
+      operationId: createCategory
+      summary: Crear categoría documental
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryCreate' }
+      responses:
+        '201':
+          description: Categoría creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /documents:
+    get:
+      tags: [Documentos]
+      operationId: listDocuments
+      summary: Listar documentos
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: caseId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: categoryId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/DocumentStatus' }
+      responses:
+        '200':
+          description: Documentos paginados
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Document' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Documentos]
+      operationId: uploadDocument
+      summary: Cargar documento y crear su primera versión
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, caseId, title]
+              properties:
+                file: { type: string, format: binary }
+                caseId: { type: string, format: uuid }
+                categoryId: { type: string, format: uuid }
+                title: { type: string, maxLength: 200 }
+                description: { type: string, maxLength: 2000 }
+      responses:
+        '201':
+          description: Documento cargado; OCR puede ejecutarse de forma asíncrona
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Document' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /documents/{documentId}:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      tags: [Documentos]
+      operationId: getDocument
+      summary: Consultar metadatos y versión actual
+      responses:
+        '200':
+          description: Documento encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Document' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Documentos]
+      operationId: updateDocument
+      summary: Actualizar metadatos del documento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DocumentUpdate' }
+      responses:
+        '200':
+          description: Documento actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Document' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Documentos]
+      operationId: archiveDocument
+      summary: Archivar documento sin borrar su trazabilidad
+      responses:
+        '204': { description: Documento archivado }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /documents/{documentId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      tags: [Documentos]
+      operationId: listDocumentVersions
+      summary: Listar versiones del documento
+      responses:
+        '200':
+          description: Historial de versiones
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/DocumentVersion' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Documentos]
+      operationId: createDocumentVersion
+      summary: Cargar una nueva versión
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                changeNote: { type: string, maxLength: 1000 }
+      responses:
+        '201':
+          description: Nueva versión creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentVersion' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /documents/{documentId}/versions/{versionId}/download:
+    get:
+      tags: [Documentos]
+      operationId: downloadDocumentVersion
+      summary: Descargar el archivo descifrado con autorización
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+        - name: versionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Archivo original descifrado; no se almacena en caché
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /search:
+    post:
+      tags: [Búsqueda]
+      operationId: searchDocuments
+      summary: Buscar en metadatos, texto extraído y vectores
+      description: >-
+        keyword busca título, descripción y fragmentos en MySQL. semantic exige
+        pgvector y el proveedor de embeddings; si faltan, responde 503.
+        hybrid fusiona el ranking semántico y el léxico con RRF cuando el índice
+        vectorial está habilitado. Si el índice está apagado, hybrid usa solo MySQL.
+        Los filtros de expediente, categoría y fechas se aplican en todos los modos.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query: { type: string, minLength: 2, maxLength: 1000 }
+                caseId: { type: string, format: uuid }
+                categoryId: { type: string, format: uuid }
+                from: { type: string, format: date }
+                to: { type: string, format: date }
+                mode:
+                  type: string
+                  enum: [keyword, semantic, hybrid]
+                  default: hybrid
+                page: { type: integer, minimum: 1, default: 1 }
+                perPage: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Resultados ordenados por relevancia
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /documents/{documentId}/ocr:
+    post:
+      tags: [OCR]
+      operationId: startOcr
+      summary: Solicitar extracción OCR de la versión actual
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '202':
+          description: Procesamiento aceptado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProcessingJob' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Ya existe un procesamiento activo para esta versión }
+  /processing-jobs/{jobId}:
+    get:
+      tags: [OCR]
+      operationId: getProcessingJob
+      summary: Consultar el estado de un proceso OCR o de indexación
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Estado del proceso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProcessingJob' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /assistant/conversations:
+    get:
+      tags: [Asistente]
+      operationId: listConversations
+      summary: Listar conversaciones del usuario actual
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Conversaciones paginadas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Conversation' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Asistente]
+      operationId: createConversation
+      summary: Crear conversación
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string, maxLength: 160 }
+                caseId: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Conversación creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Conversation' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /assistant/conversations/{conversationId}/messages:
+    post:
+      tags: [Asistente]
+      operationId: askAssistant
+      summary: Preguntar sobre la documentación accesible
+      description: >-
+        La respuesta debe incluir citas recuperables. Solo se consultan documentos
+        autorizados para el usuario y la organización activa.
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question: { type: string, minLength: 3, maxLength: 4000 }
+                caseId: { type: string, format: uuid }
+                documentIds:
+                  type: array
+                  maxItems: 50
+                  items: { type: string, format: uuid }
+                answerMode:
+                  type: string
+                  enum: [answer, summary]
+                  default: answer
+      responses:
+        '200':
+          description: Respuesta completada con citas de las fuentes recuperadas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssistantMessage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /assistant/messages/{messageId}:
+    get:
+      tags: [Asistente]
+      operationId: getAssistantMessage
+      summary: Obtener respuesta y fuentes de una consulta
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Mensaje y citas recuperadas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssistantMessage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /notifications:
+    get:
+      tags: [Notificaciones]
+      operationId: listNotifications
+      summary: Listar notificaciones del usuario actual
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: unreadOnly
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Notificaciones paginadas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Notification' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /notifications/{notificationId}/read:
+    patch:
+      tags: [Notificaciones]
+      operationId: markNotificationRead
+      summary: Marcar notificación como leída
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Notificación marcada como leída }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /audit-events:
+    get:
+      tags: [Auditoría]
+      operationId: listAuditEvents
+      summary: Consultar trazabilidad de operaciones
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: actorId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: resourceType
+          in: query
+          schema: { type: string, maxLength: 80 }
+        - name: resourceId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Eventos de auditoría paginados
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/AuditEvent' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      operationId: getDashboard
+      summary: Obtener indicadores del espacio de trabajo. recentActivity queda vacío para especialista y usuario consultor.
+      responses:
+        '200':
+          description: Indicadores resumidos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dashboard' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PerPage:
+      name: perPage
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CaseId:
+      name: caseId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Unauthorized:
+      description: Credenciales ausentes o inválidas
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Forbidden:
+      description: El usuario no tiene permisos para esta operación
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Recurso inexistente o fuera del ámbito autorizado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ValidationError:
+      description: Datos de entrada inválidos
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationError' }
+    PayloadTooLarge:
+      description: El archivo supera el tamaño máximo permitido
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ServiceUnavailable:
+      description: El proveedor de OCR, embeddings o LLM no está configurado o disponible
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+  schemas:
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, examples: [unauthenticated] }
+        message: { type: string }
+        traceId: { type: string, format: uuid }
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/ApiError'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items: { type: string }
+    AuthSession:
+      type: object
+      required: [accessToken, tokenType, expiresAt, user]
+      properties:
+        accessToken: { type: string }
+        tokenType: { type: string, const: Bearer }
+        expiresAt: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/User' }
+    UserRole:
+      type: string
+      enum: [administrator, records_manager, analyst, consultant]
+    User:
+      type: object
+      required: [id, name, email, role, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { $ref: '#/components/schemas/UserRole' }
+        status: { type: string, enum: [active, invited, suspended] }
+        createdAt: { type: string, format: date-time }
+    UserCreate:
+      type: object
+      required: [name, email, password, role]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        email: { type: string, format: email }
+        password: { type: string, format: password, minLength: 12 }
+        role: { $ref: '#/components/schemas/UserRole' }
+    UserUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        role: { $ref: '#/components/schemas/UserRole' }
+        status: { type: string, enum: [active, suspended] }
+    CaseStatus:
+      type: string
+      enum: [draft, open, in_review, closed, archived]
+    Case:
+      type: object
+      required: [id, reference, title, status, documentCount, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, maxLength: 80 }
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/CaseStatus' }
+        categoryId: { type: [string, 'null'], format: uuid }
+        ownerId: { type: [string, 'null'], format: uuid }
+        documentCount: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CaseCreate:
+      type: object
+      required: [reference, title]
+      properties:
+        reference: { type: string, minLength: 1, maxLength: 80 }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 5000 }
+        categoryId: { type: string, format: uuid }
+        ownerId: { type: string, format: uuid }
+    CaseUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 5000 }
+        status: { $ref: '#/components/schemas/CaseStatus' }
+        categoryId: { type: [string, 'null'], format: uuid }
+        ownerId: { type: [string, 'null'], format: uuid }
+    Category:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 120 }
+        description: { type: [string, 'null'] }
+        color: { type: [string, 'null'], pattern: '^#[0-9A-Fa-f]{6}$' }
+        createdAt: { type: string, format: date-time }
+    CategoryCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, maxLength: 1000 }
+        color: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+    DocumentStatus:
+      type: string
+      enum: [uploaded, processing, indexed, failed, archived]
+    Document:
+      type: object
+      required: [id, caseId, title, status, currentVersion, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        categoryId: { type: [string, 'null'], format: uuid }
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        mimeType: { type: string }
+        sizeBytes: { type: integer, minimum: 0 }
+        status: { $ref: '#/components/schemas/DocumentStatus' }
+        currentVersion: { $ref: '#/components/schemas/DocumentVersion' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    DocumentUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        categoryId: { type: [string, 'null'], format: uuid }
+    DocumentVersion:
+      type: object
+      required: [id, versionNumber, fileName, mimeType, sizeBytes, checksum, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        versionNumber: { type: integer, minimum: 1 }
+        fileName: { type: string }
+        mimeType: { type: string }
+        sizeBytes: { type: integer, minimum: 0 }
+        checksum: { type: string, description: SHA-256 del archivo }
+        changeNote: { type: [string, 'null'] }
+        uploadedBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+    SearchResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/SearchHit' }
+        meta: { $ref: '#/components/schemas/PaginationMeta' }
+    SearchHit:
+      type: object
+      required: [document, score, excerpt]
+      properties:
+        document: { $ref: '#/components/schemas/Document' }
+        score: { type: number, minimum: 0, maximum: 1 }
+        excerpt: { type: string }
+        page: { type: [integer, 'null'], minimum: 1 }
+    ProcessingJob:
+      type: object
+      required: [id, type, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [ocr, embedding, indexing] }
+        status: { type: string, enum: [queued, processing, completed, failed] }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        resultText: { type: [string, 'null'], description: Texto OCR disponible al completar }
+        errorCode: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
+    Conversation:
+      type: object
+      required: [id, title, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        caseId: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AssistantMessage:
+      type: object
+      required: [id, conversationId, role, content, status, citations, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        conversationId: { type: string, format: uuid }
+        role: { type: string, enum: [user, assistant] }
+        content: { type: string }
+        status: { type: string, enum: [processing, completed, failed] }
+        citations:
+          type: array
+          items: { $ref: '#/components/schemas/Citation' }
+        createdAt: { type: string, format: date-time }
+    Citation:
+      type: object
+      required: [reference, documentId, versionId, title, excerpt]
+      properties:
+        reference: { type: integer, minimum: 1, description: Número de fuente citado como [S#] en la respuesta }
+        documentId: { type: string, format: uuid }
+        versionId: { type: string, format: uuid }
+        title: { type: string }
+        page: { type: [integer, 'null'], minimum: 1 }
+        excerpt: { type: string }
+        relevance: { type: number, minimum: 0, maximum: 1 }
+    Notification:
+      type: object
+      required: [id, type, title, readAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [document_processing, case_update, system] }
+        title: { type: string }
+        body: { type: [string, 'null'] }
+        resourceType: { type: [string, 'null'] }
+        resourceId: { type: [string, 'null'], format: uuid }
+        readAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+    AuditEvent:
+      type: object
+      required: [id, actorId, action, resourceType, resourceId, occurredAt]
+      properties:
+        id: { type: string, format: uuid }
+        actorId: { type: string, format: uuid }
+        action: { type: string, examples: [document.uploaded] }
+        resourceType: { type: string }
+        resourceId: { type: string, format: uuid }
+        changes:
+          type: [object, 'null']
+          additionalProperties: true
+        ipAddress: { type: [string, 'null'] }
+        occurredAt: { type: string, format: date-time }
+    Dashboard:
+      type: object
+      required: [cases, documents, processing, recentActivity]
+      properties:
+        cases:
+          type: object
+          properties:
+            total: { type: integer, minimum: 0 }
+            open: { type: integer, minimum: 0 }
+            inReview: { type: integer, minimum: 0 }
+        documents:
+          type: object
+          properties:
+            total: { type: integer, minimum: 0 }
+            indexed: { type: integer, minimum: 0 }
+            pendingOcr: { type: integer, minimum: 0 }
+        processing:
+          type: object
+          properties:
+            queued: { type: integer, minimum: 0 }
+            failed: { type: integer, minimum: 0 }
+        recentActivity:
+          type: array
+          items: { $ref: '#/components/schemas/AuditEvent' }
+    PaginationMeta:
+      type: object
+      required: [currentPage, perPage, total, lastPage]
+      properties:
+        currentPage: { type: integer, minimum: 1 }
+        perPage: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 0 }
+        lastPage: { type: integer, minimum: 1 }
+    PaginatedResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { type: array, items: {} }
+        meta: { $ref: '#/components/schemas/PaginationMeta' }

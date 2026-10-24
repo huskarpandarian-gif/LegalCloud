@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Esquema RAG — LegalCloud AI</title>
+  <style>
+    :root {
+      --ink: #1c1917;
+      --muted: #57534e;
+      --line: #d6d3d1;
+      --paper: #f7f6f3;
+      --card: #ffffff;
+      --accent: #1e3a5f;
+      --accent-soft: #e7eef6;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 40px 28px 64px;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      font-weight: 650;
+      letter-spacing: -0.03em;
+    }
+
+    header p {
+      margin: 0;
+      max-width: 68ch;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 28px 0 36px;
+    }
+
+    .metric {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 28px;
+      letter-spacing: -0.03em;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    section { margin-top: 36px; }
+
+    h2 {
+      margin: 0 0 6px;
+      font-size: 20px;
+    }
+
+    .lead {
+      margin: 0 0 16px;
+      color: var(--muted);
+      max-width: 78ch;
+    }
+
+    .flow {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .step, .node {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-width: 150px;
+      padding: 12px 14px;
+    }
+
+    .step strong, .node strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .step span, .node span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .step.accent, .node.accent {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .step.accent span, .node.accent span { color: #d6e2f0; }
+
+    .arrow {
+      align-self: center;
+      width: 28px;
+      flex: 0 0 28px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .query {
+      display: grid;
+      grid-template-columns: 1fr 28px 1fr 28px 1fr 28px 1fr;
+      align-items: center;
+      gap: 8px 0;
+    }
+
+    .pair {
+      display: grid;
+      gap: 10px;
+    }
+
+    .merge {
+      color: var(--muted);
+      text-align: center;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .stores {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .store {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .store h3 {
+      margin: 0 0 6px;
+      font-size: 15px;
+    }
+
+    .store p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .note {
+      margin-top: 16px;
+      background: var(--accent-soft);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .note strong { display: block; margin-bottom: 4px; }
+
+    .note p { margin: 0; }
+
+    footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 860px) {
+      .metrics, .stores { grid-template-columns: 1fr 1fr; }
+      .query { grid-template-columns: 1fr; }
+      .merge, .arrow { transform: rotate(90deg); }
+    }
+
+    @media print {
+      body { background: #fff; }
+      main { max-width: none; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Esquema RAG de LegalCloud</h1>
+      <p>
+        El asistente no responde de memoria. Indexa el documento, recupera solo fragmentos
+        autorizados y redacta la respuesta citando esas fuentes. Si no hay evidencia, no llama al modelo.
+      </p>
+    </header>
+
+    <div class="metrics">
+      <div class="metric"><strong>240</strong><span>palabras por chunk</span></div>
+      <div class="metric"><strong>40</strong><span>palabras de solape</span></div>
+      <div class="metric"><strong>5</strong><span>fragmentos al modelo</span></div>
+      <div class="metric"><strong>60</strong><span>constante k de RRF</span></div>
+    </div>
+
+    <section>
+      <h2>1. Indexación</h2>
+      <p class="lead">
+        La carga no espera al modelo. Un job de la cola descifra el archivo, extrae el texto,
+        parte cada página y, si el índice está activo, guarda un vector por chunk.
+      </p>
+      <div class="flow">
+        <div class="step"><strong>Archivo cifrado</strong><span>Disco privado</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="step"><strong>Extracción</strong><span>PDF, DOCX, texto</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="step"><strong>Chunks 240/40</strong><span>MySQL</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="step"><strong>Embedding</strong><span>1536 dimensiones</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="step accent"><strong>Índice HNSW</strong><span>PostgreSQL pgvector</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Consulta</h2>
+      <p class="lead">
+        La pregunta se busca por palabras y por significado. Si las dos listas traen resultados,
+        se fusionan por puesto, sin mezclar scores incompatibles.
+      </p>
+      <div class="query">
+        <div class="node"><strong>Pregunta</strong><span>Organización del usuario</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="pair">
+          <div class="node"><strong>Búsqueda léxica</strong><span>Términos en MySQL</span></div>
+          <div class="node"><strong>Búsqueda semántica</strong><span>Coseno en pgvector</span></div>
+        </div>
+        <div class="merge" aria-hidden="true">→</div>
+        <div class="node"><strong>Fusión RRF</strong><span>k = 60</span></div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="pair">
+          <div class="node accent"><strong>gpt-4.1-mini</strong><span>Máximo 5 fragmentos</span></div>
+          <div class="node"><strong>Respuesta</strong><span>Citas [S1], [S2]…</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Dónde vive cada dato</h2>
+      <div class="stores">
+        <article class="store">
+          <h3>MySQL, fuente de verdad</h3>
+          <p>Usuarios, expedientes, permisos, versiones, chunks de texto y citas. El texto sensible va cifrado.</p>
+        </article>
+        <article class="store">
+          <h3>PostgreSQL</h3>
+          <p>Solo el índice semántico: embedding consultable y el fragmento cifrado asociado.</p>
+        </article>
+        <article class="store">
+          <h3>OpenAI</h3>
+          <p>text-embedding-3-small para los vectores y gpt-4.1-mini para redactar, con store desactivado.</p>
+        </article>
+      </div>
+      <div class="note">
+        <strong>Corte de seguridad</strong>
+        <p>
+          El modelo no ve el expediente completo. Recibe como máximo cinco fragmentos de la organización
+          y de la versión vigente. Si la recuperación vuelve vacía, no hay llamada al modelo.
+        </p>
+      </div>
+    </section>
+
+    <footer>LegalCloud AI · esquema para exposición · abrir este archivo en el navegador</footer>
+  </main>
+</body>
+</html>
