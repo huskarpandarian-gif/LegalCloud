@@ -93,10 +93,63 @@ document.addEventListener('change',(event)=>{
 	if(event.target.matches('[data-appearance]')){localStorage.setItem('legalcloud.appearance',event.target.value);document.documentElement.dataset.theme=event.target.value;toast('Apariencia guardada en este navegador.');}
 });
 document.addEventListener('submit',async(event)=>{
-	if(event.target.matches('[data-login-form]')){
-		event.preventDefault();const form=event.target,error=form.querySelector('[data-login-error]'),payload=Object.fromEntries(new FormData(form));error.hidden=true;
-		try{const response=await fetch(`${apiBase}${paths.login}`,{method:'POST',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(payload)});if(!response.ok)throw new Error('invalid');const session=await response.json();const user={...session.user,home:session.home||'/dashboard'};writeSession({accessToken:session.accessToken,user,organization:session.organization});state.user=user;state.organization=session.organization;showAuth(false);goHome();paintChrome();render();await loadApiCollections();}catch{error.textContent='Correo o contraseña incorrectos.';error.hidden=false;}
+	
+	if (event.target.matches('[data-login-form]')) {
+		event.preventDefault();
+
+		const form = event.target;
+		const error = form.querySelector('[data-login-error]');
+		const payload = Object.fromEntries(new FormData(form));
+
+		error.hidden = true;
+
+		try {
+			const response = await fetch(`${apiBase}${paths.login}`, {
+				method: 'POST',
+				headers: {
+					Accept: 'application/json',
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(payload)
+			});
+
+			const result = await response.json().catch(() => ({}));
+
+			if (!response.ok) {
+				console.error('Error de inicio de sesión:', response.status, result);
+				throw new Error(result.message || `Error HTTP ${response.status}`);
+			}
+
+			const session = result;
+			const user = {
+				...session.user,
+				home: session.home || '/dashboard'
+			};
+
+			writeSession({
+				accessToken: session.accessToken,
+				user,
+				organization: session.organization
+			});
+
+			state.user = user;
+			state.organization = session.organization;
+
+			showAuth(false);
+			goHome();
+			paintChrome();
+			render();
+
+			await loadApiCollections();
+		} catch (exception) {
+			console.error('Fallo al iniciar sesión:', exception);
+
+			error.textContent =
+				'No se pudo iniciar sesión. Revisa la consola del navegador para conocer el error.';
+			error.hidden = false;
+		}
 	}
+
 	if(event.target.matches('[data-category-form]')){
 		event.preventDefault();const form=event.target,payload=Object.fromEntries(new FormData(form));
 		if(apiMode!=='demo'){try{if(form.dataset.categoryId)await request(`${paths.categories}/${form.dataset.categoryId}`,{method:'PATCH',body:JSON.stringify(payload)});else await request(paths.categories,{method:'POST',body:JSON.stringify(payload)});await loadApiCollections();}catch{return toast('No se pudo guardar la categoría.');}form.closest('dialog').close();form.reset();delete form.dataset.categoryId;toast('Categoría guardada.');return;}
